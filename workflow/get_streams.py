@@ -5,11 +5,9 @@ from dotenv import load_dotenv
 from utils.Logger import Logger
 
 logger = Logger()
-
 load_dotenv()
 ffprobe_path = os.getenv('FFPROBE_PATH')
 
-# Obtém informações de streams do arquivo MXF
 def get_streams(file_path):
     cmd = [
         ffprobe_path,
@@ -18,6 +16,7 @@ def get_streams(file_path):
         '-of', 'json',
         file_path
     ]
+
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
