@@ -1,7 +1,5 @@
-os
-subprocess
 pymsgbox
 dotenv
-pathlib
-json
 ffmpeg-python
+spleeter
+shazamio

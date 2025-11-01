@@ -124,3 +124,33 @@ class AudioAnalyzer:
                 logger.registrar_aviso(f"⚠️ Arquivo de áudio não encontrado: {audio_file}")
         
         return results
+    
+    def main():
+        """
+        Função principal para executar o reconhecimento
+        """
+        print("🎶 ShazamIO - Reconhecedor de Músicas")
+        print("=" * 40)
+        
+        # Solicita o caminho do arquivo de áudio
+        audio_file = input("Digite o caminho para o arquivo de áudio: ").strip()
+        
+        # Remove aspas se o usuário colar o caminho com elas
+        audio_file = audio_file.strip('"\'')
+        
+        if not audio_file:
+            print("❌ Por favor, digite um caminho válido")
+            return
+        
+        try:
+            # Executa o reconhecimento
+            print(f"\n🔍 Analisando: {audio_file}")
+            asyncio.run(recognize_audio_file(audio_file))
+            
+        except FileNotFoundError:
+            print("❌ Arquivo não encontrado. Verifique o caminho.")
+        except Exception as e:
+            print(f"❌ Erro inesperado: {e}")
+
+if __name__ == "__main__":
+    main()
