@@ -3,3 +3,6 @@
 *.py[cod]
 **.log
 **.mxf
+**.mp4
+**.wav
+**.bat

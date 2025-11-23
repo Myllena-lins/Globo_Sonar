@@ -1,7 +1,10 @@
-os
-subprocess
+shazamio
+pydub
 pymsgbox
-dotenv
-pathlib
-json
-ffmpeg-python
+python-dotenv
+schedule
+demucs
+torch>=1.9.0
+torchaudio>=0.9.0
+scipy==1.11.4
+numpy==1.26.4

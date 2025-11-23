@@ -1,0 +1,33 @@
+TITLE: 202510212118-_1_.mxf
+FCM: NON-DROP FRAME
+CREATED: Sun Nov 23 15:36:16 2025
+
+001  AX       V     C        00:00:00:00 00:00:30:00 00:00:00:00 00:00:30:00
+ |MUSIC: Exaltasamba - Tá Vendo Aquela Lua (Ao Vivo)
+ |ISRC: BRIAW1000013
+ |GENRE: Pagode
+ |ALBUM: 25 Anos (Ao Vivo)
+ |SOURCE: Stream 1 - mixed_direct (direct)
+ |URL: https://www.shazam.com/track/52626846/t%C3%A1-vendo-aquela-lua-ao-vivo
+002  AX       V     C        00:00:00:00 00:00:30:00 00:00:00:00 00:00:30:00
+ |MUSIC: Pagode - Ate que durou
+ |SEGMENT: audio_1_2c_pcm_s16le_202510212118-_1__segment_1.wav
+ |GENRE: Dance
+ |SOURCE: Stream 1 - mixed_direct (direct)
+ |URL: https://www.shazam.com/track/683811548/ate-que-durou
+003  AX       V     C        00:00:00:00 00:00:30:00 00:00:00:00 00:00:30:00
+ |MUSIC: Exaltasamba - Tá Vendo Aquela Lua (Ao Vivo)
+ |SEGMENT: audio_1_2c_pcm_s16le_202510212118-_1__segment_2.wav
+ |ISRC: BRIAW1000013
+ |GENRE: Pagode
+ |ALBUM: 25 Anos (Ao Vivo)
+ |SOURCE: Stream 1 - mixed_direct (direct)
+ |URL: https://www.shazam.com/track/52626846/t%C3%A1-vendo-aquela-lua-ao-vivo
+004  AX       V     C        00:00:00:00 00:00:30:00 00:00:00:00 00:00:30:00
+ |MUSIC: Raça Negra - Cheia de Manias
+ |SEGMENT: audio_1_2c_pcm_s16le_202510212118-_1__segment_3.wav
+ |ISRC: BRSGL9200048
+ |GENRE: Pagode
+ |ALBUM: Raça Negra, Vol. 3
+ |SOURCE: Stream 1 - mixed_direct (direct)
+ |URL: https://www.shazam.com/track/53662379/cheia-de-manias
