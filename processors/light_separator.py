@@ -1,5 +1,4 @@
 import numpy as np
-from scipy import signal
 from pydub import AudioSegment
 from pydub.effects import low_pass_filter, high_pass_filter
 from pathlib import Path
