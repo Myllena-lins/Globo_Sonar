@@ -14,6 +14,12 @@ from core.config import Config
 from core.logger import Logger
 from watchfolder.scheduler import WatchFolderScheduler
 from watchfolder.sharepoint_scheduler import SharePointScheduler
+from fastapi import FastAPI
+from controllers.mxf_controller import router as mxf_router
+
+
+app = FastAPI()
+app.include_router(mxf_router)
 
 async def main_async():
     """Função principal assíncrona"""
