@@ -3,7 +3,7 @@ class MXFRepository:
     def save_file_record(self, db, file_name: str, path: str):
         cursor = db.cursor()
         cursor.execute("""
-            INSERT INTO files (file_name, path, status)
+            INSERT INTO mxf_files (file_name, path, status)
             VALUES (?, ?, ?)
         """, (file_name, path, "pending"))
         db.commit()
@@ -11,7 +11,7 @@ class MXFRepository:
     def update_status(self, db, file_name: str, status: str):
         cursor = db.cursor()
         cursor.execute("""
-            UPDATE files SET status = ?
+            UPDATE mxf_files SET status = ?
             WHERE file_name = ?
         """, (status, file_name))
         db.commit()

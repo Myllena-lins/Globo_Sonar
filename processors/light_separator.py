@@ -93,7 +93,7 @@ class LightSeparator:
             
             self.logger.info(f"✅ Áudio otimizado: {output_path.name}")
             return output_path
-            
+    
         except Exception as e:
             self.logger.error(f"❌ Erro na otimização de áudio: {e}")
             return audio_path

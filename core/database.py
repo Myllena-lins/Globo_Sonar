@@ -8,7 +8,7 @@ def create_tables():
     cursor = conn.cursor()
     
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS files (
+    CREATE TABLE IF NOT EXISTS mxf_files (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         file_name TEXT NOT NULL,
         path TEXT NOT NULL,

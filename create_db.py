@@ -1,6 +1,4 @@
-from core.database import Base, engine
-import models.mxf_file
+from core.database import create_tables
 
-Base.metadata.create_all(bind=engine)
-
+create_tables()
 print("Banco criado!")
