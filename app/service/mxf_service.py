@@ -23,19 +23,19 @@ class MXFService:
     async def process_uploaded_mxf(self, db, file_name: str, file_path: Path):
         self.logger.info(f"▶ Processando upload: {file_name}")
 
-        self.repository.save_file_record(db, file_name, str(file_path))
+        mxf = self.repository.save_file_record(db, file_name, str(file_path))
 
         processor = MXFProcessor()
         streams = processor.get_streams(file_path)
 
         if not streams:
-            self.repository.update_status(db, file_name, "error")
+            self.repository.update_status(db, mxf.id, "error")
             return False
 
         workflow = next((wf for wf in self.workflows if wf.can_handle(streams)), None)
 
         if not workflow:
-            self.repository.update_status(db, file_name, "no_workflow")
+            self.repository.update_status(db, mxf.id, "no_workflow")
             return False
 
         results = await workflow.process(file_path)
@@ -43,6 +43,6 @@ class MXFService:
         process_id = Path(file_name).stem
         await self.edl_service.create_and_store_edl(db, process_id, file_name, results)
 
-        self.repository.update_status(db, file_name, "processed")
+        self.repository.update_status(db, mxf.id, "processed")
 
         return True
