@@ -2,14 +2,15 @@ from pathlib import Path
 from core.config import Config
 from core.file_processor import MXFProcessor
 from core.logger import Logger
-from processors.edl_generator import EDLGenerator
 from workflows.mixed_audio import MixedAudioWorkflow
 from workflows.unmixed_audio import UnmixedAudioWorkflow
+from repository.edl_repository import EDLRepository
+from service.edl_service import EDLService
 
 
 class MXFService:
 
-    def __init__(self, repository):
+    def __init__(self, repository, edl_service: EDLService = None):
         self.repository = repository
         self.logger = Logger()
         self.config = Config()
@@ -17,7 +18,7 @@ class MXFService:
             UnmixedAudioWorkflow(),
             MixedAudioWorkflow()
         ]
-        self.edl_generator = EDLGenerator()
+        self.edl_service = EDLService(EDLRepository())
 
     async def process_uploaded_mxf(self, db, file_name: str, file_path: Path):
         self.logger.info(f"▶ Processando upload: {file_name}")
@@ -39,11 +40,8 @@ class MXFService:
 
         results = await workflow.process(file_path)
 
-        edl_name = f"{Path(file_name).stem}.edl"
-        edl_path = self.config.WATCHFOLDER_OUTPUT / edl_name
-
-        edl_content = self.edl_generator.generate_edl(results, file_name)
-        self.edl_generator.save_edl(edl_content, edl_path)
+        process_id = Path(file_name).stem
+        await self.edl_service.create_and_store_edl(db, process_id, file_name, results)
 
         self.repository.update_status(db, file_name, "processed")
 
