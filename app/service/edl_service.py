@@ -12,20 +12,29 @@ class EDLService:
         self.logger = Logger()
         self.config = Config()
 
-    async def create_and_store_edl(self, db, process_id: str, source_file: str, recognition_results, frame_rate: float = 29.97, drop_frame: bool = False):
+    async def create_and_store_edl(
+        self, db, process_id: str, source_file: str, recognition_results, 
+        frame_rate: float = 29.97, drop_frame: bool = False
+    ):
         edl_name = f"{Path(source_file).stem}.edl"
         edl_path = self.config.WATCHFOLDER_OUTPUT / edl_name
 
+        # Gera os eventos
         events = self.generate_structured_events(recognition_results, source_file)
         total_events = len(events)
         validation_status = "validated" if total_events > 0 else "no_music"
         validation_errors = [] if total_events > 0 else ["No music recognized"]
 
-        edl_id = self.repository.save_edl_record(
+        # Gera o conteúdo do EDL
+        edl_content = self.generate_edl(recognition_results, source_file)
+
+        # Salva registro no banco já com o blob
+        edl_id = await self.repository.save_edl_record(
             db,
             process_id=process_id,
             edl_name=edl_name,
             path=str(edl_path),
+            blob=edl_content,  # salva o EDL no banco
             frame_rate=frame_rate,
             drop_frame=drop_frame,
             total_events=total_events,
@@ -33,14 +42,17 @@ class EDLService:
             validation_errors=validation_errors
         )
 
-        edl_content = self.generate_edl(recognition_results, source_file)
-        saved = self.save_edl(edl_content, edl_path)
+        # Salva no filesystem (opcional, para backup físico)
+        saved_file = self.save_edl(edl_content, edl_path)
 
-        if not saved:
-            self.repository.update_status(db, edl_id, "error", ["Failed to save EDL file"])
+        # Atualiza status se houve erro no arquivo
+        if not saved_file:
+            await self.repository.update_status(db, edl_id, "error", ["Failed to save EDL file"])
             validation_status = "error"
         else:
-            self.repository.update_status(db, edl_id, validation_status, validation_errors if validation_errors else None)
+            await self.repository.update_status(
+                db, edl_id, validation_status, validation_errors if validation_errors else None
+            )
 
         return {
             "id": str(edl_id),
@@ -55,52 +67,46 @@ class EDLService:
             "validation_status": validation_status,
             "validation_errors": validation_errors,
         }
-    
+
     def generate_structured_events(self, recognition_results, source_file):
-            """Map recognition results to EDLEvent-like dicts used by the model."""
-            events = []
-            event_number = 1
-            for r in recognition_results:
-                if not r.get("title") or r.get("title") == "Desconhecido":
-                    continue
-                events.append({
-                    "event_number": event_number,
-                    "reel": "AX",
-                    "track_type": "AX",
-                    "edit_type": "C",
-                    "source_start": r.get("source_start", "00:00:00:00"),
-                    "source_end": r.get("source_end", "00:00:30:00"),
-                    "record_start": r.get("record_start", "00:00:00:00"),
-                    "record_end": r.get("record_end", "00:00:30:00"),
-                    "clip_name": Path(source_file).name,
-                    "music_title": r.get("title"),
-                    "music_artist": r.get("artist"),
-                })
-                event_number += 1
-            return events
+        events = []
+        event_number = 1
+        for r in recognition_results:
+            if not r.get("title") or r.get("title") == "Desconhecido":
+                continue
+            events.append({
+                "event_number": event_number,
+                "reel": "AX",
+                "track_type": "AX",
+                "edit_type": "C",
+                "source_start": r.get("source_start", "00:00:00:00"),
+                "source_end": r.get("source_end", "00:00:30:00"),
+                "record_start": r.get("record_start", "00:00:00:00"),
+                "record_end": r.get("record_end", "00:00:30:00"),
+                "clip_name": Path(source_file).name,
+                "music_title": r.get("title"),
+                "music_artist": r.get("artist"),
+            })
+            event_number += 1
+        return events
 
     def generate_edl(self, recognition_results, source_file, format_version="1.0"):
-        """Generate textual EDL with full music metadata (migrated from edl_generator)."""
         try:
             edl_lines = []
 
-            # Header
             edl_lines.append(f"TITLE: {source_file}")
             edl_lines.append(f"FCM: NON-DROP FRAME")
             edl_lines.append(f"CREATED: {datetime.now().strftime('%a %b %d %H:%M:%S %Y')}")
             edl_lines.append("")
 
-            # Events with metadata
             event_number = 1
             for result in recognition_results:
                 if 'title' in result and result['title'] != 'Desconhecido':
-                    # Basic event line (timecodes are placeholders — replace with real calculation)
                     start_time = result.get('source_start', "00:00:00:00")
                     end_time = result.get('source_end', "00:00:30:00")
                     event_line = f"{event_number:03d}  AX       V     C        {start_time} {end_time} {start_time} {end_time}"
                     edl_lines.append(event_line)
 
-                    # Full metadata block
                     music_info = self._format_music_metadata(result)
                     if music_info:
                         edl_lines.append(music_info)
@@ -117,20 +123,16 @@ class EDLService:
             return f"ERROR: {e}"
 
     def _format_music_metadata(self, result):
-        """Format detailed music metadata lines (migrated from edl_generator)."""
         metadata_lines = []
 
         artist = result.get('artist', 'Artista Desconhecido')
         title = result.get('title', 'Título Desconhecido')
-
         metadata_lines.append(f" |MUSIC: {artist} - {title}")
 
-        # Segment info
         if result.get('segment_type') == 'partial':
             segment_file = result.get('segment_file', '')
             metadata_lines.append(f" |SEGMENT: {segment_file}")
 
-        # Shazam / track info
         shazam_data = result.get('shazam_data', {}) or {}
         track_info = shazam_data.get('track', {}) or {}
 
@@ -177,7 +179,6 @@ class EDLService:
                 metadata_lines.append(f" |CONFIDENCE: {float(confidence):.1f}%")
             except Exception:
                 metadata_lines.append(f" |CONFIDENCE: {confidence}")
-
         else:
             matches = shazam_data.get('matches', [])
             if matches and len(matches) > 0:
@@ -199,7 +200,6 @@ class EDLService:
         return "\n".join(metadata_lines)
 
     def save_edl(self, edl_content, output_path: Path):
-        """Save EDL content to a file."""
         try:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w', encoding='utf-8') as f:

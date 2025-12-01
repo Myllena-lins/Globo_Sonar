@@ -19,3 +19,5 @@ sqlalchemy
 fastapi
 requests
 msal
+psycopg2-binary
+asyncpg
