@@ -1,16 +1,19 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
+from fastapi import (
+    APIRouter, UploadFile, File, HTTPException,
+    Depends, BackgroundTasks
+)
 from pathlib import Path
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 import aiofiles
+import asyncio
 
 from app.dto.MXFDetailResponse import MXFDetailResponse
 from app.dto.AudioTrackResponse import AudioTrackResponse
 from app.dto.TimeRangeResponse import TimeRangeResponse
 from app.service.mxf_service import MXFService
 from app.repository.mxf_repository import MXFRepository
-from core.database import get_db
-from core.database import async_session
+from core.database import get_db, async_session
 
 router = APIRouter(
     prefix="/v1/mxf",
@@ -21,12 +24,15 @@ router = APIRouter(
 repository = MXFRepository()
 service = MXFService(repository)
 
+
 class UploadResponse(BaseModel):
     id: int
     message: str = "Arquivo recebido e processamento iniciado em background"
 
+
 async def save_upload(file: UploadFile, save_path: Path):
     save_path.parent.mkdir(parents=True, exist_ok=True)
+
     async with aiofiles.open(save_path, "wb") as f:
         while True:
             chunk = await file.read(1024 * 1024)  # 1MB
@@ -34,14 +40,26 @@ async def save_upload(file: UploadFile, save_path: Path):
                 break
             await f.write(chunk)
 
+
 async def process_file_in_background(mxf_id: int, file_path: Path):
     async with async_session() as db:
-        await service.process_uploaded_mxf(db, mxf_id, file_path)
+        await asyncio.to_thread(process_uploaded_sync, db, mxf_id, file_path)
+
+
+def process_uploaded_sync(db, mxf_id: int, file_path: Path):
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(
+            service.process_uploaded_mxf(db, mxf_id, file_path)
+        )
+    finally:
+        loop.close()
+
 
 @router.post(
     "",
     summary="Upload de arquivo MXF",
-    description="Cria registro do MXF, devolve o ID e processa em background",
+    description="Cria registro e inicia processamento em background",
     response_model=UploadResponse,
     status_code=202
 )
@@ -58,24 +76,30 @@ async def upload_mxf(
     await save_upload(file, save_path)
 
     mxf = await service.create_mxf_record(db, file.filename, str(save_path))
-    background_tasks.add_task(process_file_in_background, mxf.id, save_path)
-    
-    return UploadResponse(id=mxf.id, message=f"Arquivo '{file.filename}' recebido. Processamento iniciado em background.")
+
+    background_tasks.add_task(
+        process_file_in_background,
+        mxf.id,
+        save_path
+    )
+
+    return UploadResponse(
+        id=mxf.id,
+        message=f"Arquivo '{file.filename}' recebido. Processamento iniciado."
+    )
+
 
 @router.get(
     "/{mxf_id}",
     response_model=MXFDetailResponse,
-    summary="Obter dados do MXF com todas as faixas de áudio",
-    description=(
-        "Retorna os dados do arquivo MXF e todas as faixas de áudio "
-        "com todos os campos e seus time ranges."
-    )
+    summary="Obter dados do MXF com faixas e time ranges"
 )
 async def get_mxf_details(
     mxf_id: int,
     db: AsyncSession = Depends(get_db)
 ):
     mxf = await service.get_mxf_details(db, mxf_id)
+
     if not mxf:
         raise HTTPException(status_code=404, detail="MXF não encontrado")
 
@@ -85,10 +109,11 @@ async def get_mxf_details(
             TimeRangeResponse(
                 id=occ.id,
                 start_time=ms_to_hms(occ.start_time),
-                end_time=ms_to_hms(occ.end_time)
+                end_time=ms_to_hms(occ.end_time),
             )
             for occ in track.occurrences
         ]
+
         audio_tracks.append(
             AudioTrackResponse(
                 id=track.id,
@@ -111,6 +136,7 @@ async def get_mxf_details(
         status=mxf.status,
         audio_tracks=audio_tracks
     )
+
 
 def ms_to_hms(ms: int) -> str:
     seconds, milliseconds = divmod(ms, 1000)

@@ -29,7 +29,7 @@ class MXFRepository:
             stmt = (
                 update(MXFFile)
                 .where(MXFFile.id == file_id)
-                .values(validation_status=status)
+                .values(status=status)
             )
             await db.execute(stmt)
             await db.commit()
