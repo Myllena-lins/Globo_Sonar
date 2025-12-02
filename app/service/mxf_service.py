@@ -50,6 +50,7 @@ class MXFService:
         process_id = Path(file_path.name).stem
         await self.edl_service.create_and_store_edl(db, process_id, file_path.name, results)
 
+        await self.repository.update_status(db, mxf.id, "processed")
         self.logger.info(f"✅ Processamento concluído: {file_path.name}")
         return True
 
