@@ -4,6 +4,9 @@ from datetime import datetime
 from core.config import Config
 from core.logger import Logger
 from app.repository.edl_repository import EDLRepository
+from core.database import SessionLocal  
+from app.repository.mxf_repository import MXFRepository
+from sqlalchemy.orm import Session
 
 class EDLService:
 
@@ -14,7 +17,8 @@ class EDLService:
 
     async def create_and_store_edl(
         self, db, process_id: str, source_file: str, recognition_results, 
-        frame_rate: float = 29.97, drop_frame: bool = False
+        frame_rate: float = 29.97, drop_frame: bool = False,
+        mxf_id: int | None = None
     ):
         edl_name = f"{Path(source_file).stem}.edl"
         edl_path = self.config.WATCHFOLDER_OUTPUT / edl_name
@@ -54,6 +58,17 @@ class EDLService:
                 db, edl_id, validation_status, validation_errors if validation_errors else None
             )
 
+        # Se recebeu mxf_id, atualiza a relação MXF.edl_id (abre sessão sync para isso)
+        if mxf_id and edl_id:
+            try:
+                db_sync: Session = SessionLocal()
+                try:
+                    MXFRepository().update_edl_id_sync(db_sync, mxf_id, edl_id)
+                finally:
+                    db_sync.close()
+            except Exception as e:
+                self.logger.error(f"Erro ao atualizar MXF.edl_id (async flow): {e}")
+ 
         return {
             "id": str(edl_id),
             "process_id": process_id,
@@ -87,7 +102,7 @@ class EDLService:
                 "music_title": r.get("title"),
                 "music_artist": r.get("artist"),
             })
-            event_number += 1
+            event_number = 1
         return events
 
     def generate_edl(self, recognition_results, source_file, format_version="1.0"):
@@ -111,7 +126,7 @@ class EDLService:
                     if music_info:
                         edl_lines.append(music_info)
 
-                    event_number += 1
+                    event_number = 1
 
             if event_number == 1:
                 edl_lines.append("*** NO MUSIC RECOGNIZED ***")
@@ -210,31 +225,89 @@ class EDLService:
             self.logger.error(f"Erro ao salvar EDL: {e}")
             return False
         
-    def create_and_store_edl_sync(self, source_file: str, recognition_results):
+    def create_and_store_edl_sync(self, source_file: str, recognition_results, mxf_id: int | None = None):
         """
-        Versão síncrona, para rodar dentro de thread separada.
-        Não usa AsyncSession nem await.
+        Versão síncrona: salva EDL e retorna o id do registro (int) ou None em caso de falha.
         """
         edl_name = f"{Path(source_file).stem}.edl"
         edl_path = self.config.WATCHFOLDER_OUTPUT / edl_name
 
         events = self.generate_structured_events(recognition_results, source_file)
-
+        total_events = len(events)
+        validation_status = "validated" if total_events > 0 else "no_music"
+        validation_errors = [] if total_events > 0 else ["No music recognized"]
         edl_content = self.generate_edl(recognition_results, source_file)
 
-        # Aqui você salva o EDL no filesystem (opcional)
-        self.save_edl(edl_content, edl_path)
-
-        # Se quiser, pode salvar em DB usando métodos sync do repository
+        # salva em disco (opcional)
         try:
-            self.repository.save_edl_record_sync(
+            self.save_edl(edl_content, edl_path)
+        except Exception:
+            pass
+
+        db = None
+        edl_id = None
+        try:
+            db = SessionLocal()
+        except Exception as e:
+            self.logger.error(f"Não foi possível abrir sessão sync: {e}")
+            return None
+
+        try:
+            edl_id = self.repository.save_edl_record_sync(
+                db,
                 process_id=Path(source_file).stem,
                 edl_name=edl_name,
                 path=str(edl_path),
                 blob=edl_content,
-                total_events=len(events)
+                total_events=total_events,
+                validation_status=validation_status,
+                validation_errors=validation_errors
             )
+            # atualiza status sync conforme salvamento no fs
+            saved_file = True
+            try:
+                saved_file = self.save_edl(edl_content, edl_path)
+            except Exception:
+                saved_file = False
+
+            if not saved_file:
+                try:
+                    self.repository.update_status_sync(db, edl_id, "error", ["Failed to save EDL file"])
+                    validation_status = "error"
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.repository.update_status_sync(db, edl_id, validation_status, validation_errors if validation_errors else None)
+                except Exception:
+                    pass
+
+            # se tiver mxf_id, atualiza MXF.edl_id
+            if mxf_id and edl_id:
+                try:
+                    db2 = SessionLocal()
+                    try:
+                        updated = MXFRepository().update_edl_id_sync(db2, mxf_id, edl_id)
+                        if updated:
+                            self.logger.info(f"MXF id={mxf_id} vinculado ao EDL id={edl_id}")
+                        else:
+                            self.logger.warning(f"Nenhum MXF encontrado para id={mxf_id} ao tentar vincular EDL id={edl_id}")
+                    finally:
+                        db2.close()
+                except Exception as e:
+                    self.logger.error(f"Erro ao atualizar MXF.edl_id (sync flow): {e}")
+
+            return edl_id
         except Exception as e:
             self.logger.error(f"Erro ao salvar EDL sync no repository: {e}")
-
-        return events
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            return None
+        finally:
+            try:
+                if db:
+                    db.close()
+            except Exception:
+                pass

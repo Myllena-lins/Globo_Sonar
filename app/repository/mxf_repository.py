@@ -74,7 +74,8 @@ class MXFRepository:
             select(MXFFile)
             .where(MXFFile.id == mxf_id)
             .options(
-                MXFFile.audio_tracks.joinedload(AudioTrack.occurrences)
+                selectinload(MXFFile.audio_tracks).selectinload(AudioTrack.occurrences),
+                selectinload(MXFFile.edl) 
             )
         )
         mxf = result.scalars().first()
@@ -115,3 +116,23 @@ class MXFRepository:
         except Exception as e:
             db.rollback()
             raise RuntimeError(f"Erro ao atualizar status do MXFFile: {e}") from e
+    
+    def update_edl_id_sync(self, db: Session, mxf_id: int, edl_id: int) -> bool:
+        """
+        Atualiza o campo edl_id do MXF identificado por id.
+        Retorna True se atualizou, False se não encontrou o registro.
+        """
+        try:
+            mxf = db.get(MXFFile, mxf_id)
+            if not mxf:
+                return False
+            mxf.edl_id = edl_id
+            db.commit()
+            db.refresh(mxf)
+            return True
+        except Exception as e:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            raise RuntimeError(f"Erro ao atualizar edl_id do MXFFile: {e}") from e

@@ -1,5 +1,5 @@
 # app/model/mxf_file.py
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -12,5 +12,7 @@ class MXFFile(Base):
     path = Column(String)
     status = Column(String, default="pending")
     created_at = Column(DateTime, server_default=func.now())
+    edl_id = Column(Integer, ForeignKey("edl.id"), nullable=True)
+    edl = relationship("EDLEntry", uselist=False)
 
     audio_tracks = relationship("AudioTrack", back_populates="mxf", cascade="all, delete-orphan")

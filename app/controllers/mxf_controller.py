@@ -45,8 +45,7 @@ async def process_file_in_background(mxf_id: int, file_path: Path):
         if not mxf:
             await asyncio.to_thread(update_status_sync_thread, mxf_id, "error")
             return
-
-        results = await asyncio.to_thread(service.run_workflow_with_edl, file_path)
+        results = await asyncio.to_thread(service.run_workflow_with_edl, file_path, mxf.id)
         await service.repository.save_audio_tracks(db, mxf, results)
 
         await asyncio.to_thread(update_status_sync_thread, mxf.id, "processed")

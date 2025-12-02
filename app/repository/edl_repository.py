@@ -1,5 +1,4 @@
-# app/repository/edl_repository.py
-from requests import Session
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.model.edl import EDLEntry
 
@@ -80,3 +79,19 @@ class EDLRepository:
         db.commit()
         db.refresh(edl)
         return edl.id
+
+    def update_status_sync(
+        self, db: Session, edl_id: int, validation_status: str, validation_errors: list | None = None
+    ):
+        """
+        Versão síncrona de update_status para uso no fluxo sync.
+        """
+        edl = db.get(EDLEntry, edl_id)
+        if not edl:
+            return None
+        edl.validation_status = validation_status
+        if validation_errors is not None:
+            edl.validation_errors = ",".join(validation_errors)
+        db.commit()
+        db.refresh(edl)
+        return edl

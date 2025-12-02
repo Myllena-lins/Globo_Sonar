@@ -8,6 +8,7 @@ from app.repository.mxf_repository import MXFRepository
 from app.repository.edl_repository import EDLRepository
 from app.service.edl_service import EDLService
 import asyncio
+from core.database import SessionLocal
 
 class MXFService:
     def __init__(self, repository: MXFRepository, edl_service: EDLService = None):
@@ -22,8 +23,8 @@ class MXFService:
     async def get_mxf_details(self, db: AsyncSession, mxf_id: int):
         return await self.repository.get_mxf_with_tracks(db, mxf_id)
 
-    def run_workflow_with_edl(self, file_path: Path):
-        """Função síncrona para rodar workflow e EDLService sem tocar no AsyncSession"""
+    def run_workflow_with_edl(self, file_path: Path, mxf_id: int | None = None):
+        """Executa o workflow e cria EDL; se mxf_id for fornecido, atualiza mxf.edl_id."""
         processor = MXFProcessor()
         streams = processor.get_streams(file_path)
 
@@ -31,12 +32,11 @@ class MXFService:
         if not workflow:
             return []
 
-        # workflow.process é async, rodamos apenas dentro da thread
         results = asyncio.run(workflow.process(file_path))
 
-        # EDLService: criamos e armazenamos o EDL sem AsyncSession
         try:
-            self.edl_service.create_and_store_edl_sync(file_path.name, results)
+            # passa o mxf_id para que o EDLService atualize MXF.edl_id internamente
+            self.edl_service.create_and_store_edl_sync(file_path.name, results, mxf_id=mxf_id)
         except Exception as e:
             self.logger.error(f"Erro ao criar EDL: {e}")
 
