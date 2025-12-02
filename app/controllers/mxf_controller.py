@@ -117,6 +117,7 @@ async def get_mxf_details(
 
     return MXFDetailResponse(
         id=mxf.id,
+        edl_id=mxf.edl_id,
         file_name=mxf.file_name,
         file_path=mxf.path,
         status=mxf.status,
