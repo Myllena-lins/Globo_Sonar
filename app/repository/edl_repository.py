@@ -1,4 +1,5 @@
 # app/repository/edl_repository.py
+from requests import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.model.edl import EDLEntry
 
@@ -55,3 +56,27 @@ class EDLRepository:
             "validation_errors": edl.validation_errors.split(",") if edl.validation_errors else [],
             "created_at": edl.created_at,
         }
+
+    def save_edl_record_sync(
+        self, db: Session, process_id, edl_name, path=None, blob=None,
+        frame_rate=29.97, drop_frame=False, total_events=0,
+        validation_status="pending", validation_errors=None
+    ):
+        """
+        Versão síncrona de save_edl_record para rodar em threads de background.
+        """
+        edl = EDLEntry(
+            process_id=process_id,
+            edl_name=edl_name,
+            path=path,
+            blob=blob,
+            frame_rate=frame_rate,
+            drop_frame=drop_frame,
+            total_events=total_events,
+            validation_status=validation_status,
+            validation_errors=",".join(validation_errors) if validation_errors else None
+        )
+        db.add(edl)
+        db.commit()
+        db.refresh(edl)
+        return edl.id

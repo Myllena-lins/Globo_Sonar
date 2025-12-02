@@ -209,3 +209,32 @@ class EDLService:
         except Exception as e:
             self.logger.error(f"Erro ao salvar EDL: {e}")
             return False
+        
+    def create_and_store_edl_sync(self, source_file: str, recognition_results):
+        """
+        Versão síncrona, para rodar dentro de thread separada.
+        Não usa AsyncSession nem await.
+        """
+        edl_name = f"{Path(source_file).stem}.edl"
+        edl_path = self.config.WATCHFOLDER_OUTPUT / edl_name
+
+        events = self.generate_structured_events(recognition_results, source_file)
+
+        edl_content = self.generate_edl(recognition_results, source_file)
+
+        # Aqui você salva o EDL no filesystem (opcional)
+        self.save_edl(edl_content, edl_path)
+
+        # Se quiser, pode salvar em DB usando métodos sync do repository
+        try:
+            self.repository.save_edl_record_sync(
+                process_id=Path(source_file).stem,
+                edl_name=edl_name,
+                path=str(edl_path),
+                blob=edl_content,
+                total_events=len(events)
+            )
+        except Exception as e:
+            self.logger.error(f"Erro ao salvar EDL sync no repository: {e}")
+
+        return events

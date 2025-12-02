@@ -102,3 +102,16 @@ class MXFRepository:
         )
         mxf = result.scalars().first()
         return mxf
+    
+    def update_status_sync(self, db: Session, file_id: int, status: str):
+        try:
+            mxf = db.get(MXFFile, file_id)
+            if not mxf:
+                return False
+            mxf.status = status
+            db.commit()
+            db.refresh(mxf)
+            return True
+        except Exception as e:
+            db.rollback()
+            raise RuntimeError(f"Erro ao atualizar status do MXFFile: {e}") from e
