@@ -10,6 +10,7 @@ class Config:
     FFPROBE_PATH = os.getenv('FFPROBE_PATH', 'ffprobe')
     PASTA_SAIDA = Path(os.getenv('PASTA_SAIDA', 'files/export'))
     LOGS_PATH = Path(os.getenv('CAMINHO_DIRETORIO_LOGS', 'logs'))
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mxf.db")
     
     # Watchfolder
     WATCHFOLDER_INPUT = Path(os.getenv('WATCHFOLDER_INPUT', 'files/input'))

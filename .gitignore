@@ -6,3 +6,6 @@
 **.mp4
 **.wav
 **.bat
+mxf.db
+**.edl
+/venv

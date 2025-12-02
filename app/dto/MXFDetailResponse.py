@@ -1,0 +1,10 @@
+from typing import List
+from pydantic import BaseModel
+from app.dto.AudioTrackResponse import AudioTrackResponse
+
+class MXFDetailResponse(BaseModel):
+    id: int
+    file_name: str
+    file_path: str
+    status: str
+    audio_tracks: List[AudioTrackResponse] = [] # type: ignore
