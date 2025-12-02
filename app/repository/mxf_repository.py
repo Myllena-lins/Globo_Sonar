@@ -24,7 +24,7 @@ class MXFRepository:
     
     from sqlalchemy.exc import SQLAlchemyError
 
-    async def update_status(db: AsyncSession, file_id: int, status: str):
+    async def update_status(self, db: AsyncSession, file_id: int, status: str):
         try:
             stmt = (
                 update(MXFFile)

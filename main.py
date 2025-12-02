@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from app.controllers.mxf_controller import router as mxf_router
 from app.controllers.edl_controller import router as edl_router
+from app.model.edl import EDLEntry
 
 sys.path.append(str(Path(__file__).parent))
 
