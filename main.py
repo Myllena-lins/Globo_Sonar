@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.controllers.mxf_controller import router as mxf_router
 from app.controllers.edl_controller import router as edl_router
 from app.model.edl import EDLEntry
@@ -43,6 +44,14 @@ app = FastAPI(
 
 app.include_router(mxf_router)
 app.include_router(edl_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 logging.basicConfig(
     level=logging.INFO,  # Define nível de log
