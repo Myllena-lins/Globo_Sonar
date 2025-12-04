@@ -8,13 +8,9 @@ services:
     ports:
       - "3001:3000"
     environment:
-      NODE_ENV: production
-    env_file: 
-      - ./frontend/.env
-    depends_on:
-      - backend_python
-      - backend_csharp
-      - backend_csharp_worker
+      - NODE_ENV=production
+      - NEXT_PUBLIC_MXF_TO_MP4=http://localhost:8080
+      - NEXT_PUBLIC_MXF_TO_EDL=http://localhost:8000
     networks:
       - backend
 

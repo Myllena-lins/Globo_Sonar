@@ -1,5 +1,5 @@
 ﻿export async function getMxfStatus(id: string) {
-    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_MP4_URL}/v1/mxf/${id}`);
+    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_MP4}/v1/mxf/${id}`);
 
     if (!resp.ok) {
         throw new Error("Erro ao consultar status");
@@ -8,7 +8,7 @@
     return resp.json();
 }
 export async function getMxfEdlStatus(id: number) {
-    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_EDL_URL}/v1/mxf/${id}`);
+    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_EDL}/v1/mxf/${id}`);
 
     if (!resp.ok) {
         throw new Error("Erro ao consultar status");
@@ -18,7 +18,7 @@ export async function getMxfEdlStatus(id: number) {
 }
 
 export async function uploadMxf(formData: FormData) {
-    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_MP4_URL}/v1/mxf/upload`, {
+    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_MP4}/v1/mxf/upload`, {
         method: "POST",
         body: formData
     });
@@ -30,7 +30,7 @@ export async function uploadMxf(formData: FormData) {
     return resp.json();
 }
 export async function uploadEdlMxf(formData: FormData) {
-    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_EDL_URL}/v1/mxf`, {
+    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_EDL}/v1/mxf`, {
         method: "POST",
         body: formData
     });
@@ -43,7 +43,7 @@ export async function uploadEdlMxf(formData: FormData) {
 }
 
 export async function downloadEdl(id: number) {
-    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_EDL_URL}/v1/edl/${id}/download`);
+    const resp = await fetch(`${process.env.NEXT_PUBLIC_MXF_TO_EDL}/v1/edl/${id}/download`);
 
     if (!resp.ok) {
         throw new Error("Falha ao obter arquivo.");
