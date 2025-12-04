@@ -1,6 +1,35 @@
-version: "3.9"
-
 services:
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_MXF_TO_EDL_URL: "http://backend_python:8000"
+      NEXT_PUBLIC_MXF_TO_MP4_URL: "http://backend_csharp:8080"
+    depends_on:
+      - backend_python
+      - backend_csharp
+      - backend_csharp_worker
+    networks:
+      - backend
+
+  backend_python:
+    build:
+      context: ./backend_python
+    volumes:
+      - mxf-shared:/app/temp
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    networks:
+      - backend
+
   postgres:
     image: postgres:15
     container_name: postgres-db
@@ -15,8 +44,55 @@ services:
     networks:
       - backend
 
-networks:
-  backend:
+  backend_csharp:
+    build:
+      context: ./backend_c#
+      dockerfile: API/Dockerfile
+    user: root
+    volumes:
+      - mxf-shared:/app/temp
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    networks:
+      - backend
+
+  backend_csharp_worker:
+    image: worker
+    build:
+      context: ./backend_c#
+      dockerfile: Worker/Dockerfile
+    env_file: .env
+    user: root
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    volumes:
+      - mxf-shared:/app/temp
+    depends_on:
+      - redis
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - backend
 
 volumes:
+  mxf-shared:
+  redis-data:
   pgdata:
+
+networks:
+  backend:
