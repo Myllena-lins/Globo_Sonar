@@ -19,14 +19,11 @@ services:
       - backend
 
   backend_python:
+    container_name: backend_python
     build:
       context: ./backend_python
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_DB: appdb
-      POSTGRES_USER: appuser
-      POSTGRES_PASSWORD: apppass
-      POSTGRES_PORT: 5432
+    env_file: 
+      - ./backend_python/.env
     volumes:
       - mxf-shared:/app/temp
     ports:
@@ -51,6 +48,7 @@ services:
       - backend
 
   backend_csharp:
+    container_name: backend_csharp
     build:
       context: ./backend_c#
       dockerfile: API/Dockerfile
@@ -59,6 +57,10 @@ services:
       - mxf-shared:/app/temp
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      AZUREBLOBACCOUNTNAME: mxftomp4
+      AZUREBLOBACCOUNTKEY: "sua key aqui"
+      AZUREBLOBCONTAINER: mp4-output
+      CONNECTIONSTRINGSREDIS: redis:6379
     ports:
       - "8080:8080"
     depends_on:
@@ -74,6 +76,17 @@ services:
     user: root
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      AZUREBLOBACCOUNTNAME: mxftomp4
+      AZUREBLOBACCOUNTKEY: "sua key aqui"
+      AZUREBLOBCONTAINER: mp4-output
+      CONNECTIONSTRINGSREDIS: redis:6379
+      WORKERTempFolder: /app/temp
+      WORKERFfmpegPath: ffmpeg
+      WORKERFfprobePath: ffprobe
+      WORKERMaxDegreeOfParallelism: 2
+      QUEUEProcessingQueueName: process-queue
+      QUEUEPoisonQueueName: process-poison
+      QUEUE__MaxDeliveryCount: 5
     volumes:
       - mxf-shared:/app/temp
     depends_on:

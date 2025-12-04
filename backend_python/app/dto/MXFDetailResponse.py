@@ -1,10 +1,10 @@
-from typing import List, Optional
+from typing import Optional, List
 from pydantic import BaseModel
 from app.dto.AudioTrackResponse import AudioTrackResponse
 
 class MXFDetailResponse(BaseModel):
     id: int
-    edl_id: int
+    edl_id: Optional[int] = None 
     file_name: str
     file_path: str
     status: str

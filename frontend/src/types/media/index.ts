@@ -19,7 +19,7 @@ export interface AudioTrack {
   isrc: string
   gmusic: string
   occurrences: TimeRange[]
-  imageUrl?: string
+  image_url?: string
 }
 
 export interface TrackCardProps {

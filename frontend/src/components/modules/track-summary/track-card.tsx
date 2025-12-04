@@ -15,9 +15,9 @@ export function TrackCard({track}: TrackCardProps) {
     return (
         <div className={"rounded-xl mb-4"}>
             <div className="flex gap-4 mb-4">
-                {track.imageUrl ? (
+                {track.image_url ? (
                     <Image
-                        src={track.imageUrl}
+                        src={track.image_url}
                         alt={track.album}
                         className="h-full rounded-lg object-cover"
                     />
