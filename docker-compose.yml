@@ -51,7 +51,6 @@ services:
     user: root
     volumes:
       - mxf-shared:/app/temp
-    env_file: .env
     environment:
       ASPNETCORE_ENVIRONMENT: Development
     ports:
@@ -66,7 +65,6 @@ services:
     build:
       context: ./backend_c#
       dockerfile: Worker/Dockerfile
-    env_file: .env
     user: root
     environment:
       ASPNETCORE_ENVIRONMENT: Development
