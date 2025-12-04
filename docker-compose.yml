@@ -6,11 +6,11 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_MXF_TO_EDL_URL: "http://backend_python:8000"
-      NEXT_PUBLIC_MXF_TO_MP4_URL: "http://backend_csharp:8080"
+    env_file: 
+      - ./frontend/.env
     depends_on:
       - backend_python
       - backend_csharp
@@ -19,7 +19,6 @@ services:
       - backend
 
   backend_python:
-    container_name: backend_python
     build:
       context: ./backend_python
     env_file: 
@@ -48,19 +47,16 @@ services:
       - backend
 
   backend_csharp:
-    container_name: backend_csharp
     build:
       context: ./backend_c#
       dockerfile: API/Dockerfile
     user: root
+    env_file: 
+      - ./backend_c#/.env
     volumes:
       - mxf-shared:/app/temp
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      AZUREBLOBACCOUNTNAME: mxftomp4
-      AZUREBLOBACCOUNTKEY: "sua key aqui"
-      AZUREBLOBCONTAINER: mp4-output
-      CONNECTIONSTRINGSREDIS: redis:6379
     ports:
       - "8080:8080"
     depends_on:
@@ -74,19 +70,10 @@ services:
       context: ./backend_c#
       dockerfile: Worker/Dockerfile
     user: root
+    env_file: 
+      - ./backend_c#/.env
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      AZUREBLOBACCOUNTNAME: mxftomp4
-      AZUREBLOBACCOUNTKEY: "sua key aqui"
-      AZUREBLOBCONTAINER: mp4-output
-      CONNECTIONSTRINGSREDIS: redis:6379
-      WORKERTempFolder: /app/temp
-      WORKERFfmpegPath: ffmpeg
-      WORKERFfprobePath: ffprobe
-      WORKERMaxDegreeOfParallelism: 2
-      QUEUEProcessingQueueName: process-queue
-      QUEUEPoisonQueueName: process-poison
-      QUEUE__MaxDeliveryCount: 5
     volumes:
       - mxf-shared:/app/temp
     depends_on:
