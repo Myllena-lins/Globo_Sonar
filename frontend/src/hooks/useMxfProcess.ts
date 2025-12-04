@@ -61,7 +61,7 @@ export function useMxfProcess() {
                 setStatus("error");
                 clearInterval(interval);
             }
-        }, 1500);
+        }, 6000);
 
         return () => clearInterval(interval);
     }, [mp4Id, status]);
@@ -88,7 +88,7 @@ export function useMxfProcess() {
                 setStatus("error");
                 clearInterval(interval);
             }
-        }, 1500);
+        }, 6000);
 
         return () => clearInterval(interval);
     }, [edlId, status]);
