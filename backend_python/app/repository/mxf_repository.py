@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.model.audio_track import AudioTrack
 from app.model.mxf import MXFFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.model.time_range import TimeRange
@@ -117,10 +117,40 @@ class MXFRepository:
             db.rollback()
             raise RuntimeError(f"Erro ao atualizar status do MXFFile: {e}") from e
     
+    def save_audio_tracks_sync(self, db: Session, mxf: MXFFile, results: list):
+        """
+        Versão síncrona de save_audio_tracks para uso em threads.
+        """
+        for r in results:
+            track = AudioTrack(
+                mxf_id=mxf.id,
+                name=r.get("title") or r.get("track", {}).get("title"),
+                album=r.get("album"),
+                year=r.get("release_date"),
+                authors=[r.get("artist")] if r.get("artist") else [],
+                genres=[r.get("genre_primary")] if r.get("genre_primary") else [],
+                isrc=r.get("isrc"),
+                gmusic=r.get("google_music_url") or None,
+                image_url=r.get("cover_art") or r.get("cover_art_hq")
+            )
+            db.add(track)
+            db.flush()
+
+            shazam_data = r.get("shazam_data") or {}
+            matches = shazam_data.get("matches", [])
+            for m in matches:
+                tr = TimeRange(
+                    audio_track_id=track.id,
+                    start_time=int(m.get("offset", 0) * 1000),
+                    end_time=int(m.get("offset", 0) * 1000) + r.get("segment_duration", 0)
+                )
+                db.add(tr)
+        
+        db.commit()
+
     def update_edl_id_sync(self, db: Session, mxf_id: int, edl_id: int) -> bool:
         """
-        Atualiza o campo edl_id do MXF identificado por id.
-        Retorna True se atualizou, False se não encontrou o registro.
+        Atualiza o campo edl_id do MXF.
         """
         try:
             mxf = db.get(MXFFile, mxf_id)
@@ -128,11 +158,24 @@ class MXFRepository:
                 return False
             mxf.edl_id = edl_id
             db.commit()
-            db.refresh(mxf)
             return True
         except Exception as e:
-            try:
-                db.rollback()
-            except Exception:
-                pass
+            db.rollback()
             raise RuntimeError(f"Erro ao atualizar edl_id do MXFFile: {e}") from e
+    
+    def get_by_id_sync(self, db: Session, mxf_id: int):
+        """
+        GET síncrono com eager loading.
+        """
+        from app.model.mxf import MXFFile
+        from app.model.audio_track import AudioTrack
+        from sqlalchemy.orm import joinedload
+        from sqlalchemy import select
+        
+        stmt = (
+            select(MXFFile)
+            .where(MXFFile.id == mxf_id)
+            .options(joinedload(MXFFile.audio_tracks).joinedload(AudioTrack.occurrences))
+        )
+        result = db.execute(stmt)
+        return result.unique().scalar_one_or_none()

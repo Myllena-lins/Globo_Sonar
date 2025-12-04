@@ -47,7 +47,7 @@ app.include_router(edl_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],    
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -75,7 +75,6 @@ async def main_async():
             
         logger.info("=" * 60)
         
-        # Executa o processamento uma vez
         await scheduler.process_pending_files()
         
         logger.info("✅ Processamento concluído com sucesso!")

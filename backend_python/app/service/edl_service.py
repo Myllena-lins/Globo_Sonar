@@ -1,4 +1,3 @@
-# app/service/edl_service.py
 from pathlib import Path
 from datetime import datetime
 from core.config import Config
@@ -7,6 +6,7 @@ from app.repository.edl_repository import EDLRepository
 from core.database import SessionLocal  
 from app.repository.mxf_repository import MXFRepository
 from sqlalchemy.orm import Session
+import asyncio
 
 class EDLService:
 
@@ -16,109 +16,147 @@ class EDLService:
         self.config = Config()
 
     async def create_and_store_edl(
-        self, db, process_id: str, source_file: str, recognition_results, 
+        self, db, process_id: str, source_file: str, recognition_results,
         frame_rate: float = 29.97, drop_frame: bool = False,
         mxf_id: int | None = None
     ):
         edl_name = f"{Path(source_file).stem}.edl"
         edl_path = self.config.WATCHFOLDER_OUTPUT / edl_name
 
-        # Gera os eventos
-        events = self.generate_structured_events(recognition_results, source_file)
+        self.logger.debug("create_and_store_edl: entry")
+        self.logger.debug(f"create_and_store_edl: calling repository.get_all_timestamps for db")
+        timestamps = await self.repository.get_all_timestamps(db)
+        self.logger.debug(f"create_and_store_edl: got timestamps count={len(timestamps)}")
+        for i, t in enumerate(timestamps):
+            self.logger.debug(f" timestamp[{i}] = {t}")
+
+        timestamps_by_track = {t["audio_track_id"]: t for t in (timestamps or []) if t.get("audio_track_id") is not None}
+        self.logger.debug(f"timestamps_by_track mapping keys: {list(timestamps_by_track.keys())}")
+
+        if not timestamps_by_track:
+            self.logger.debug("timestamps_by_track empty — tentando fallback por audio_track_id nos recognition_results")
+            for r in recognition_results:
+                audio_track_id = r.get("audio_track_id")
+                if audio_track_id is None:
+                    continue
+                try:
+                    ts = await self.repository.get_timestamp_by_audio_track_id(db, audio_track_id)
+                    self.logger.debug(f" fallback fetched for audio_track_id={audio_track_id}: {ts}")
+                    if ts:
+                        timestamps_by_track[audio_track_id] = ts
+                except Exception as e:
+                    self.logger.error(f"Erro no fallback get_timestamp_by_audio_track_id for {audio_track_id}: {e}")
+
+        self.logger.debug(f"final timestamps_by_track keys: {list(timestamps_by_track.keys())}")
+
+        if timestamps_by_track and all(r.get("audio_track_id") is None for r in recognition_results):
+            keys = list(timestamps_by_track.keys())
+            self.logger.debug(f"recognition_results sem audio_track_id — atribuindo a partir de timestamps_by_track keys={keys}")
+            for i, r in enumerate(recognition_results):
+                assigned = keys[i % len(keys)]
+                r["audio_track_id"] = assigned
+                self.logger.debug(f" assigned recognition_result[{i}].audio_track_id = {assigned}")
+
+        events = self.generate_structured_events(recognition_results, source_file, timestamps_by_track)
         total_events = len(events)
         validation_status = "validated" if total_events > 0 else "no_music"
         validation_errors = [] if total_events > 0 else ["No music recognized"]
 
-        # Gera o conteúdo do EDL
-        edl_content = self.generate_edl(recognition_results, source_file)
+        edl_content = self.generate_edl(recognition_results, source_file, timestamps_by_track)
 
-        # Salva registro no banco já com o blob
-        edl_id = await self.repository.save_edl_record(
-            db,
-            process_id=process_id,
-            edl_name=edl_name,
-            path=str(edl_path),
-            blob=edl_content,  # salva o EDL no banco
-            frame_rate=frame_rate,
-            drop_frame=drop_frame,
-            total_events=total_events,
-            validation_status=validation_status,
-            validation_errors=validation_errors
-        )
-
-        # Salva no filesystem (opcional, para backup físico)
-        saved_file = self.save_edl(edl_content, edl_path)
-
-        # Atualiza status se houve erro no arquivo
-        if not saved_file:
-            await self.repository.update_status(db, edl_id, "error", ["Failed to save EDL file"])
-            validation_status = "error"
-        else:
-            await self.repository.update_status(
-                db, edl_id, validation_status, validation_errors if validation_errors else None
+        try:
+            edl_id = await self.repository.save_edl_record(
+                db,
+                process_id=process_id,
+                edl_name=edl_name,
+                path=str(edl_path),
+                blob=edl_content,
+                frame_rate=frame_rate,
+                drop_frame=drop_frame,
+                total_events=total_events,
+                validation_status=validation_status,
+                validation_errors=validation_errors
             )
+        except Exception as e:
+            self.logger.error(f"Erro ao salvar EDL no banco: {e}")
+            edl_id = None
 
-        # Se recebeu mxf_id, atualiza a relação MXF.edl_id (abre sessão sync para isso)
         if mxf_id and edl_id:
             try:
-                db_sync: Session = SessionLocal()
-                try:
-                    MXFRepository().update_edl_id_sync(db_sync, mxf_id, edl_id)
-                finally:
-                    db_sync.close()
-            except Exception as e:
-                self.logger.error(f"Erro ao atualizar MXF.edl_id (async flow): {e}")
- 
-        return {
-            "id": str(edl_id),
-            "process_id": process_id,
-            "title": edl_name,
-            "frame_rate": frame_rate,
-            "drop_frame": drop_frame,
-            "events": events,
-            "file_path": str(edl_path),
-            "created_at": datetime.now(),
-            "total_events": total_events,
-            "validation_status": validation_status,
-            "validation_errors": validation_errors,
-        }
+                await self.repository.update_status(db, edl_id, validation_status)  # opcional
+            except Exception:
+                pass
 
-    def generate_structured_events(self, recognition_results, source_file):
+        return edl_id
+
+    def _ms_to_hhmmss(self, ms) -> str:
+        """
+        Converte milissegundos (int/str/float) para 'HH:MM:SS'.
+        Se ms for None ou inválido, retorna '00:00:00'.
+        """
+        if ms is None:
+            return "00:00:00"
+        try:
+            total_ms = int(float(ms))
+        except Exception:
+            return "00:00:00"
+        total_seconds = total_ms // 1000
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def generate_structured_events(self, recognition_results, source_file, timestamps_by_track=None):
         events = []
         event_number = 1
-        for r in recognition_results:
+        self.logger.debug(f"Generating structured events with timestamps_by_track present: {bool(timestamps_by_track)}")
+        for idx, r in enumerate(recognition_results):
             if not r.get("title") or r.get("title") == "Desconhecido":
+                self.logger.debug(f" skip result[{idx}] missing/unknown title: {r.get('title')}")
                 continue
+            audio_track_id = r.get("audio_track_id")
+            timestamp = None
+            if audio_track_id is not None and timestamps_by_track:
+                timestamp = timestamps_by_track.get(audio_track_id)
+            self.logger.debug(f" result[{idx}] lookup audio_track_id={audio_track_id} -> timestamp={timestamp}")
+
+            start = self._ms_to_hhmmss(timestamp.get("start_time")) if timestamp else "00:00:00"
+            end = self._ms_to_hhmmss(timestamp.get("end_time")) if timestamp else "00:00:00"
+
             events.append({
                 "event_number": event_number,
                 "reel": "AX",
                 "track_type": "AX",
                 "edit_type": "C",
-                "source_start": r.get("source_start", "00:00:00:00"),
-                "source_end": r.get("source_end", "00:00:30:00"),
-                "record_start": r.get("record_start", "00:00:00:00"),
-                "record_end": r.get("record_end", "00:00:30:00"),
+                "source_start": start,
+                "source_end": end,
+                "record_start": start,
+                "record_end": end,
                 "clip_name": Path(source_file).name,
                 "music_title": r.get("title"),
                 "music_artist": r.get("artist"),
+                "audio_track_id": audio_track_id,
             })
-            event_number = 1
+            event_number += 1
         return events
 
-    def generate_edl(self, recognition_results, source_file, format_version="1.0"):
+    def generate_edl(self, recognition_results, source_file, timestamps_by_track=None, format_version="1.0"):
         try:
             edl_lines = []
-
             edl_lines.append(f"TITLE: {source_file}")
             edl_lines.append(f"FCM: NON-DROP FRAME")
             edl_lines.append(f"CREATED: {datetime.now().strftime('%a %b %d %H:%M:%S %Y')}")
             edl_lines.append("")
 
+            self.logger.debug(f"Generating EDL with timestamps_by_track present: {bool(timestamps_by_track)}")
             event_number = 1
             for result in recognition_results:
                 if 'title' in result and result['title'] != 'Desconhecido':
-                    start_time = result.get('source_start', "00:00:00:00")
-                    end_time = result.get('source_end', "00:00:30:00")
+                    audio_track_id = result.get("audio_track_id")
+                    timestamp = (timestamps_by_track or {}).get(audio_track_id) if audio_track_id is not None else None
+
+                    start_time = self._ms_to_hhmmss(timestamp.get("start_time")) if timestamp else "00:00:00"
+                    end_time = self._ms_to_hhmmss(timestamp.get("end_time")) if timestamp else "00:00:00"
                     event_line = f"{event_number:03d}  AX       V     C        {start_time} {end_time} {start_time} {end_time}"
                     edl_lines.append(event_line)
 
@@ -225,20 +263,19 @@ class EDLService:
             self.logger.error(f"Erro ao salvar EDL: {e}")
             return False
         
-    def create_and_store_edl_sync(self, source_file: str, recognition_results, mxf_id: int | None = None):
+    def create_and_store_edl_sync(self, source_file: str, timestamp_table, recognition_results, mxf_id: int | None = None):
         """
         Versão síncrona: salva EDL e retorna o id do registro (int) ou None em caso de falha.
         """
         edl_name = f"{Path(source_file).stem}.edl"
         edl_path = self.config.WATCHFOLDER_OUTPUT / edl_name
 
-        events = self.generate_structured_events(recognition_results, source_file)
+        events = self.generate_structured_events(recognition_results, source_file, timestamp_table)
         total_events = len(events)
         validation_status = "validated" if total_events > 0 else "no_music"
         validation_errors = [] if total_events > 0 else ["No music recognized"]
-        edl_content = self.generate_edl(recognition_results, source_file)
+        edl_content = self.generate_edl(recognition_results, source_file, timestamp_table)
 
-        # salva em disco (opcional)
         try:
             self.save_edl(edl_content, edl_path)
         except Exception:
@@ -263,7 +300,6 @@ class EDLService:
                 validation_status=validation_status,
                 validation_errors=validation_errors
             )
-            # atualiza status sync conforme salvamento no fs
             saved_file = True
             try:
                 saved_file = self.save_edl(edl_content, edl_path)
@@ -282,7 +318,6 @@ class EDLService:
                 except Exception:
                     pass
 
-            # se tiver mxf_id, atualiza MXF.edl_id
             if mxf_id and edl_id:
                 try:
                     db2 = SessionLocal()
@@ -311,3 +346,6 @@ class EDLService:
                     db.close()
             except Exception:
                 pass
+    
+    def get_timestamp(self, db):
+        return self.repository.get_timestamp(db)
