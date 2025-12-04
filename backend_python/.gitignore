@@ -1,0 +1,11 @@
+**.env
+**/__pycache__/
+*.py[cod]
+**.log
+**.mxf
+**.mp4
+**.wav
+**.bat
+mxf.db
+**.edl
+/venv
