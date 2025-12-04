@@ -21,6 +21,12 @@ services:
   backend_python:
     build:
       context: ./backend_python
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      POSTGRES_PORT: 5432
     volumes:
       - mxf-shared:/app/temp
     ports:
