@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "3002:3000"
+      - "3000:3000"
     environment:
       NODE_ENV: production
     env_file: 
