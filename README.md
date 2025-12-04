@@ -53,18 +53,19 @@ bash
 
 # Inicie todos os serviços
 docker-compose up -d
-
+bash
 Passo 4: Verifique o Status dos Serviços
 bash
 # Verifique se todos os containers estão rodando
+
 docker-compose ps
 
-# Deverá aparecer algo similar a:
-# NOME                   STATUS              PORTOS
-# mxf-extractor-front    running             0.0.0.0:3000->3000/tcp
-# mxf-extractor-python   running             0.0.0.0:8000->8000/tcp
-# mxf-extractor-csharp   running             0.0.0.0:8080->8080/tcp
-# postgres-db            running             0.0.0.0:5432->5432/tcp
+ Deverá aparecer algo similar a:
+NOME                   STATUS              PORTOS
+ mxf-extractor-front    running             0.0.0.0:3000->3000/tcp
+ mxf-extractor-python   running             0.0.0.0:8000->8000/tcp
+ mxf-extractor-csharp   running             0.0.0.0:8080->8080/tcp
+ postgres-db            running             0.0.0.0:5432->5432/tcp
 
 Passo 5: Acesse a Aplicação
 Frontend: http://localhost:3000
@@ -106,3 +107,4 @@ docker-compose up -d --build python-service
 # Executar comandos dentro do container
 docker-compose exec python-service bash
 docker-compose exec postgres-db psql -U postgres
+
