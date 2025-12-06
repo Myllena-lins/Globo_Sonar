@@ -3,7 +3,7 @@
 ## 📋 Sobre o Projeto
 Este projeto é uma plataforma web que extrai, de um arquivo MXF, todas as músicas retornando a sua identificação via Shazam e a minutagem onde aparecem, permitindo o download de um arquivo EDL (Edit Decision List). Com o diferencial da solução sendo o fluxo manual no front com validação de trechos identificados e fluxo completamente automatizado através de watchfolder!
 
-![Frontend](https://./frontend-screenshot.png)
+![Frontend](/images/input_image.png) ![Frontend](/images/processed_image.png) 
 
 ---
 
@@ -86,6 +86,7 @@ postgres-db             running             0.0.0.0:5432->5432/tcp
 ### Passo 4: Acesse a Aplicação
 
 Frontend: [http://localhost:3000](http://localhost:3000)>
+
 
 
 
