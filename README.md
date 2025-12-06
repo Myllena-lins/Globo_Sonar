@@ -1,7 +1,7 @@
 # 🎵 Glogo SONAR 🎵
 
 ## 📋 Sobre o Projeto
-Este projeto é uma plataforma web que extrai, de um arquivo MXF, todas as músicas retornando a sua identificação via Shazam e a minutagem onde aparecem, permitindo o download de um arquivo EDL (Edit Decision List).
+Este projeto é uma plataforma web que extrai, de um arquivo MXF, todas as músicas retornando a sua identificação via Shazam e a minutagem onde aparecem, permitindo o download de um arquivo EDL (Edit Decision List). Com o diferencial da solução sendo o fluxo manual no front com validação de trechos identificados e fluxo completamente automatizado através de watchfolder!
 
 ![Frontend](https://./frontend-screenshot.png)
 
@@ -36,7 +36,8 @@ Para utilizar a plataforma, basta acessar o site e fazer o upload do arquivo MXF
 ### Frontend
 ⚡ Interface Web - Node.js  
 - React.js  
-- TypeScript  
+- TypeScript
+- NextJS
 
 ### Infraestrutura
 - 🐳 Containerização - Docker & Docker Compose  
@@ -85,5 +86,6 @@ postgres-db             running             0.0.0.0:5432->5432/tcp
 ### Passo 4: Acesse a Aplicação
 
 Frontend: [http://localhost:3000](http://localhost:3000)>
+
 
 
