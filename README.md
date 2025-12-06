@@ -24,12 +24,12 @@ Para utilizar a plataforma, basta acessar o site e fazer o upload do arquivo MXF
 
 ### Backend - Microsserviços
 
-#### 🔹 Microsserviço de Processamento de Áudio - Python
+#### 🔹  Microsserviço de Identificação Musical - Python
 - FastAPI  
 - ffmpeg  
 - Shazam API  
 
-#### 🔹 Microsserviço de Identificação Musical - C#
+#### 🔹  Microsserviço de Processamento de Áudio - C#
 - .NET Core  
 - Entity Framework  
 
@@ -85,4 +85,5 @@ postgres-db             running             0.0.0.0:5432->5432/tcp
 ### Passo 4: Acesse a Aplicação
 
 Frontend: [http://localhost:3000](http://localhost:3000)>
+
 
